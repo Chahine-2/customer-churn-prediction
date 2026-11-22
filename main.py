@@ -1,15 +1,17 @@
+
 """
 main.py
 
-Point d'entrée du pipeline de Machine Learning
-pour la prédiction du churn client.
+Entry point for the Customer Churn Prediction ML pipeline.
 
 Usage:
     python main.py --data Churn_Modelling.csv
+
     python main.py --data Churn_Modelling.csv --prepare_data
     python main.py --data Churn_Modelling.csv --train_model
     python main.py --data Churn_Modelling.csv --evaluate_model
     python main.py --data Churn_Modelling.csv --save_model
+    python main.py --data Churn_Modelling.csv --load_model
 """
 
 import argparse
@@ -19,110 +21,140 @@ from model_pipeline import (
     train_model,
     evaluate_model,
     save_model,
+    load_model
 )
 
 
 def parse_args():
+
     parser = argparse.ArgumentParser(
-        description="Pipeline ML - Customer Churn Prediction"
+        description="Machine Learning Pipeline - Customer Churn Prediction"
     )
 
+    # Dataset
     parser.add_argument(
         "--data",
         type=str,
-        required=True,
-        help="Chemin vers le fichier CSV"
+        default="Churn_Modelling.csv",
+        help="Path to the dataset"
     )
 
+    # Model file
     parser.add_argument(
         "--save",
         type=str,
         default="classifier.joblib",
-        help="Chemin de sauvegarde du modèle"
+        help="Path to save or load the model"
     )
 
+    # Training parameters
     parser.add_argument(
         "--test-size",
         type=float,
         default=0.2,
-        help="Proportion des données de test"
+        help="Test dataset proportion"
     )
 
     parser.add_argument(
         "--n-estimators",
         type=int,
         default=100,
-        help="Nombre d'arbres Random Forest"
+        help="Number of trees in Random Forest"
     )
 
-    # Individual pipeline steps
+    # Pipeline operations
     parser.add_argument(
         "--prepare_data",
         action="store_true",
-        help="Execute data preparation"
+        help="Prepare the dataset"
     )
 
     parser.add_argument(
         "--train_model",
         action="store_true",
-        help="Execute model training"
+        help="Train the model"
     )
 
     parser.add_argument(
         "--evaluate_model",
         action="store_true",
-        help="Execute model evaluation"
+        help="Evaluate the model"
     )
 
     parser.add_argument(
         "--save_model",
         action="store_true",
-        help="Save the trained model"
+        help="Save the trained model and scaler"
+    )
+
+    parser.add_argument(
+        "--load_model",
+        action="store_true",
+        help="Load a previously saved model and scaler"
     )
 
     return parser.parse_args()
 
 
 def main():
+
     args = parse_args()
 
-    # If no specific step is selected, execute everything
-    run_all = not any([
+    # Check selected operations
+    selected_steps = [
         args.prepare_data,
         args.train_model,
         args.evaluate_model,
-        args.save_model
-    ])
+        args.save_model,
+        args.load_model
+    ]
 
-    # STEP 1: Prepare data
+    if sum(selected_steps) > 1:
+        print("Error: Please select only one operation at a time.")
+        return
+
+    # LOAD MODEL
+    if args.load_model:
+
+        print("\n=== LOADING SAVED MODEL ===")
+
+        model, scaler = load_model(args.save)
+
+        print("\nModel and scaler loaded successfully!")
+
+        return
+
+    # Determine whether to execute the complete pipeline
+    run_all = not any(selected_steps)
+
+    # STEP 1: DATA PREPARATION
     print("\n=== STEP 1: DATA PREPARATION ===")
 
-    if run_all or args.prepare_data:
-        x_train, x_test, y_train, y_test, scaler = prepare_data(
-            args.data,
-            test_size=args.test_size
-        )
-    else:
-        # Training, evaluation and saving depend on preparation
-        x_train, x_test, y_train, y_test, scaler = prepare_data(
-            args.data,
-            test_size=args.test_size
-        )
+    x_train, x_test, y_train, y_test, scaler = prepare_data(
+        args.data,
+        test_size=args.test_size
+    )
 
-    # STEP 2: Train model
-    model = None
+    if args.prepare_data and not run_all:
+        print("\nData preparation completed successfully!")
+        return
 
-    if run_all or args.train_model or args.evaluate_model or args.save_model:
-        print("\n=== STEP 2: MODEL TRAINING ===")
+    # STEP 2: MODEL TRAINING
+    print("\n=== STEP 2: MODEL TRAINING ===")
 
-        model = train_model(
-            x_train,
-            y_train,
-            n_estimators=args.n_estimators
-        )
+    model = train_model(
+        x_train,
+        y_train,
+        n_estimators=args.n_estimators
+    )
 
-    # STEP 3: Evaluate model
+    if args.train_model and not run_all:
+        print("\nModel training completed successfully!")
+        return
+
+    # STEP 3: MODEL EVALUATION
     if run_all or args.evaluate_model:
+
         print("\n=== STEP 3: MODEL EVALUATION ===")
 
         evaluate_model(
@@ -131,8 +163,13 @@ def main():
             y_test
         )
 
-    # STEP 4: Save model
+    if args.evaluate_model and not run_all:
+        print("\nModel evaluation completed successfully!")
+        return
+
+    # STEP 4: MODEL SAVING
     if run_all or args.save_model:
+
         print("\n=== STEP 4: MODEL SAVING ===")
 
         save_model(

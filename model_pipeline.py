@@ -90,12 +90,26 @@ def evaluate_model(model, x_test, y_test):
     return {"accuracy": accuracy, "confusion_matrix": matrix}
 
 
-def save_model(model, filepath="classifier.joblib"):
-    joblib.dump(model, filepath)
-    print(f"Modèle sauvegardé dans : {filepath}")
+def save_model(model, filepath="classifier.joblib", scaler=None):
+
+    joblib.dump(
+        {
+            "model": model,
+            "scaler": scaler
+        },
+        filepath
+    )
+
+    print(f"Model and scaler saved successfully: {filepath}")
 
 
 def load_model(filepath="classifier.joblib"):
-    model = joblib.load(filepath)
-    print(f"Modèle chargé depuis : {filepath}")
-    return model
+
+    saved_data = joblib.load(filepath)
+
+    model = saved_data["model"]
+    scaler = saved_data["scaler"]
+
+    print("Model loaded successfully.")
+
+    return model, scaler
